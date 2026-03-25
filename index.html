@@ -194,8 +194,56 @@ html, body {
   color: var(--text);
   line-height: 1.8;
   max-width: 360px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   position: relative; z-index: 1;
+}
+
+.welcome-quest {
+  position: relative; z-index: 1;
+  background: rgba(224,120,80,0.06);
+  border: 1px solid rgba(224,120,80,0.2);
+  border-radius: 12px;
+  padding: 16px 24px;
+  margin-bottom: 28px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.welcome-quest-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.welcome-quest-chars {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.welcome-char-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(224,120,80,0.08);
+  border: 2px solid rgba(224,120,80,0.3);
+}
+
+.welcome-quest-desc {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
 }
 
 .welcome-btn {
@@ -779,8 +827,15 @@ html, body {
 #char-collection {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   margin-right: 12px;
+}
+
+.char-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: 4px;
 }
 
 .char-box {
@@ -1150,6 +1205,17 @@ html, body {
     <div class="welcome-intro">
       午休時間，你決定好好探索一下辦公室的每個角落。每個場景都藏著驚喜，每個選擇都會寫進你的故事。
     </div>
+    <div class="welcome-quest">
+      <div class="welcome-quest-title">你的任務</div>
+      <div class="welcome-quest-chars">
+        <span class="welcome-char-box">均</span>
+        <span class="welcome-char-box">一</span>
+        <span class="welcome-char-box">挺</span>
+        <span class="welcome-char-box">開</span>
+        <span class="welcome-char-box">源</span>
+      </div>
+      <div class="welcome-quest-desc">在辦公室各處找到這五個字，集齊即可獲得「均一挺開源」匾額</div>
+    </div>
     <button class="welcome-btn" id="btn-start">開始探險</button>
     <button class="welcome-btn secondary hidden" id="btn-continue"></button>
     <button class="welcome-btn hidden" id="btn-welcome-reset" style="background:transparent;border:1px solid #b0a898;color:#7a6e60;font-size:13px;margin-top:8px">重置所有進度</button>
@@ -1364,7 +1430,7 @@ var G = {
   log: [],             // [{type, room, action, result, direction, time, traitIdx}]
   traits: { action: 0, observer: 0, adventurer: 0, warmheart: 0 },
   hiddenChars: {},     // filename -> { interactionIdx, char }
-  collectedChars: { '\u958B': false, '\u6E90': false, '\u4EBA': false },
+  collectedChars: { '\u5747': false, '\u4E00': false, '\u631C': false, '\u958B': false, '\u6E90': false },
   playerName: ''       // set on completion
 };
 
@@ -2046,12 +2112,17 @@ function updateProgress() {
 /* ----------------------------------------------------------------
    CHAR COLLECTION UI
    ---------------------------------------------------------------- */
-var COLLECT_CHARS = ['\u958B', '\u6E90', '\u4EBA'];
+var COLLECT_CHARS = ['\u5747', '\u4E00', '\u631C', '\u958B', '\u6E90'];
 
 function updateCharBoxes() {
   var container = $('char-collection');
   if (!container) return;
   clearEl(container);
+
+  // Label
+  var label = el('span', 'char-label', '集字');
+  container.appendChild(label);
+
   for (var i = 0; i < COLLECT_CHARS.length; i++) {
     var ch = COLLECT_CHARS[i];
     var box = el('div', 'char-box');
@@ -2060,6 +2131,7 @@ function updateCharBoxes() {
       box.textContent = ch;
     } else {
       box.classList.add('empty');
+      box.textContent = '?';
     }
     container.appendChild(box);
   }
@@ -2069,23 +2141,24 @@ function updateCharBoxes() {
    ASSIGN HIDDEN CHARS (seeded, deterministic)
    ---------------------------------------------------------------- */
 function assignHiddenChars() {
-  // Place 3 characters in 3 rooms. Finding = entering the room (no interaction needed).
-  var rng = mulberry32(hashStr('collect-chars-v1'));
-  var chars = ['\u958B', '\u6E90', '\u4EBA'];
+  // Place 5 characters in 5 rooms. Finding = entering the room (no interaction needed).
+  var rng = mulberry32(hashStr('collect-chars-v2'));
+  var chars = ['\u5747', '\u4E00', '\u631C', '\u958B', '\u6E90'];
+  var charCount = chars.length;
   var roomCount = G.rooms.length;
-  if (roomCount < 3) return;
+  if (roomCount < charCount) return;
 
   var pool = [];
   for (var i = 0; i < roomCount; i++) pool.push(i);
 
-  // Fisher-Yates partial shuffle to pick 3
-  for (var i = 0; i < 3; i++) {
+  // Fisher-Yates partial shuffle to pick 5
+  for (var i = 0; i < charCount; i++) {
     var j = i + Math.floor(rng() * (pool.length - i));
     var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
   }
 
   G.hiddenChars = {};
-  for (var i = 0; i < 3; i++) {
+  for (var i = 0; i < charCount; i++) {
     var fn = G.rooms[pool[i]].filename;
     G.hiddenChars[fn] = { char: chars[i] };
   }
@@ -2177,8 +2250,8 @@ function showCompletionScreen() {
   clearEl(overlay);
   overlay.classList.add('active');
 
-  overlay.appendChild(el('div', 'completion-title', '\u958B\u6E90\u4EBA'));
-  overlay.appendChild(el('div', 'completion-subtitle', '\u606D\u559C\u4F60\u6210\u70BA\u958B\u6E90\u4EBA\uFF01'));
+  overlay.appendChild(el('div', 'completion-title', '\u5747\u4E00\u631C\u958B\u6E90'));
+  overlay.appendChild(el('div', 'completion-subtitle', '\u606D\u559C\u4F60\u96C6\u9F4A\u4E86\u300C\u5747\u4E00\u631C\u958B\u6E90\u300D\uFF01'));
 
   var inputGroup = el('div', 'completion-input-group');
   inputGroup.appendChild(el('div', 'completion-input-label', '\u8ACB\u8F38\u5165\u4F60\u7684\u540D\u5B57'));
@@ -2222,76 +2295,122 @@ function showCompletionScreen() {
 }
 
 function generatePlaque(canvas, name) {
-  var w = 600, h = 400;
+  var w = 600, h = 440;
+  canvas.width = w; canvas.height = h;
   var ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  // Background
-  ctx.fillStyle = '#f5f0e8';
+  // -- Background with subtle texture --
+  ctx.fillStyle = '#f7f2ea';
   ctx.fillRect(0, 0, w, h);
 
-  // Outer border (double line)
+  // Subtle warm gradient overlay
+  var grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(224,180,130,0.06)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0)');
+  grad.addColorStop(1, 'rgba(224,180,130,0.04)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // -- Decorative outer border (thick warm brown) --
   ctx.strokeStyle = '#8b7355';
-  ctx.lineWidth = 3;
-  roundRect(ctx, 16, 16, w - 32, h - 32, 12);
-  ctx.stroke();
-  ctx.lineWidth = 1;
-  roundRect(ctx, 20, 20, w - 40, h - 40, 10);
+  ctx.lineWidth = 4;
+  roundRect(ctx, 12, 12, w - 24, h - 24, 8);
   ctx.stroke();
 
-  // Inner border
+  // Inner thin border
   ctx.strokeStyle = '#c4b5a0';
   ctx.lineWidth = 1;
-  roundRect(ctx, 28, 28, w - 56, h - 56, 8);
+  roundRect(ctx, 20, 20, w - 40, h - 40, 6);
   ctx.stroke();
 
-  // Title
+  // -- Corner decorations (small L-shaped marks) --
+  ctx.strokeStyle = '#a08060';
+  ctx.lineWidth = 2;
+  var cm = 32, cl = 20;
+  // Top-left
+  ctx.beginPath(); ctx.moveTo(cm, cm + cl); ctx.lineTo(cm, cm); ctx.lineTo(cm + cl, cm); ctx.stroke();
+  // Top-right
+  ctx.beginPath(); ctx.moveTo(w - cm - cl, cm); ctx.lineTo(w - cm, cm); ctx.lineTo(w - cm, cm + cl); ctx.stroke();
+  // Bottom-left
+  ctx.beginPath(); ctx.moveTo(cm, h - cm - cl); ctx.lineTo(cm, h - cm); ctx.lineTo(cm + cl, h - cm); ctx.stroke();
+  // Bottom-right
+  ctx.beginPath(); ctx.moveTo(w - cm - cl, h - cm); ctx.lineTo(w - cm, h - cm); ctx.lineTo(w - cm, h - cm - cl); ctx.stroke();
+
+  // -- Small label above title --
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#b0a090';
+  ctx.font = '13px "Noto Sans TC", sans-serif';
+  ctx.fillText('-- \u7B2C\u4E00\u6B21 PR \u5DE5\u4F5C\u574A --', w / 2, 62);
+
+  // -- Main title: 均一挺開源 --
   ctx.fillStyle = '#3a3028';
-  ctx.font = 'bold 56px "Noto Serif TC", Georgia, serif';
-  ctx.fillText('\u958B\u6E90\u4EBA', w / 2, 100);
+  ctx.font = 'bold 52px "Noto Serif TC", Georgia, serif';
+  ctx.fillText('\u5747\u4E00\u631C\u958B\u6E90', w / 2, 118);
 
-  // Player name
-  ctx.fillStyle = '#e07850';
-  ctx.font = '36px "Noto Serif TC", Georgia, serif';
-  ctx.fillText(name, w / 2, 170);
-
-  // Divider line
-  ctx.beginPath();
-  ctx.moveTo(w / 2 - 80, 205);
-  ctx.lineTo(w / 2 + 80, 205);
+  // -- Decorative divider --
   ctx.strokeStyle = '#c4b5a0';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  ctx.lineWidth = 1;
+  var dy = 155;
+  ctx.beginPath(); ctx.moveTo(w / 2 - 100, dy); ctx.lineTo(w / 2 - 20, dy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w / 2 + 20, dy); ctx.lineTo(w / 2 + 100, dy); ctx.stroke();
+  // Center diamond
+  ctx.fillStyle = '#c4b5a0';
+  ctx.beginPath();
+  ctx.moveTo(w / 2, dy - 5); ctx.lineTo(w / 2 + 5, dy); ctx.lineTo(w / 2, dy + 5); ctx.lineTo(w / 2 - 5, dy);
+  ctx.closePath(); ctx.fill();
 
-  // Date
-  var now = new Date();
-  var dateStr = now.getFullYear() + '.' + ('0' + (now.getMonth() + 1)).slice(-2) + '.' + ('0' + now.getDate()).slice(-2);
+  // -- "Hereby certify" text --
   ctx.fillStyle = '#7a6e60';
-  ctx.font = '16px "Noto Sans TC", sans-serif';
-  ctx.fillText(dateStr, w / 2, 235);
+  ctx.font = '15px "Noto Sans TC", sans-serif';
+  ctx.fillText('\u8332\u8B49\u660E', w / 2, 185);
 
-  // Stats line
+  // -- Player name (large, accent color) --
+  ctx.fillStyle = '#e07850';
+  var nameSize = name.length > 6 ? 32 : 40;
+  ctx.font = 'bold ' + nameSize + 'px "Noto Serif TC", Georgia, serif';
+  ctx.fillText(name, w / 2, 228);
+
+  // -- Achievement text --
+  ctx.fillStyle = '#5a5045';
+  ctx.font = '15px "Noto Serif TC", Georgia, serif';
+  ctx.fillText('\u5DF2\u6210\u529F\u96C6\u9F4A\u300C\u5747\u300D\u300C\u4E00\u300D\u300C\u631C\u300D\u300C\u958B\u300D\u300C\u6E90\u300D\u4E94\u5B57', w / 2, 272);
+  ctx.fillText('\u5747\u4E00\u631C\u958B\u6E90\uFF01', w / 2, 296);
+
+  // -- Decorative divider 2 --
+  var dy2 = 322;
+  ctx.strokeStyle = '#d5cbbe';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(w / 2 - 120, dy2); ctx.lineTo(w / 2 + 120, dy2); ctx.stroke();
+
+  // -- Stats --
   var visitCount = Object.keys(G.visited).length;
   var choiceCount = G.log.filter(function (e) { return e.type === 'choice'; }).length;
   var dominant = getDominantTrait();
   var traitLabel = dominant.label || '\u63A2\u7D22\u8005';
-  var statsLine = '\u63A2\u7D22\u4E86 ' + visitCount + ' \u500B\u5834\u666F / \u6536\u96C6\u4E86 ' + choiceCount + ' \u500B\u7D00\u5FF5\u54C1 / \u6027\u683C\uFF1A' + traitLabel;
-  ctx.font = '14px "Noto Sans TC", sans-serif';
-  ctx.fillText(statsLine, w / 2, 270);
+  ctx.fillStyle = '#a09585';
+  ctx.font = '12px "Noto Sans TC", sans-serif';
+  ctx.fillText('\u63A2\u7D22 ' + visitCount + ' \u500B\u5834\u666F  |  ' + choiceCount + ' \u6B21\u9078\u64C7  |  \u63A2\u96AA\u8005\u985E\u578B\uFF1A' + traitLabel, w / 2, 346);
 
-  // Footer
-  ctx.fillStyle = '#b0a898';
-  ctx.font = '14px "Noto Sans TC", sans-serif';
-  ctx.fillText('\u5747\u4E00\u8FA6\u516C\u5BA4\u63A2\u96AA', w / 2, 340);
+  // -- Date --
+  var now = new Date();
+  var dateStr = now.getFullYear() + '.' + ('0' + (now.getMonth() + 1)).slice(-2) + '.' + ('0' + now.getDate()).slice(-2);
+  ctx.fillStyle = '#a09585';
+  ctx.font = '13px "Noto Sans TC", sans-serif';
+  ctx.fillText(dateStr, w / 2, 372);
 
-  // Verification code
-  var code = generateVerifyCode(name);
+  // -- Footer --
   ctx.fillStyle = '#c4b5a0';
-  ctx.font = '10px "Noto Sans TC", sans-serif';
+  ctx.font = '12px "Noto Sans TC", sans-serif';
+  ctx.fillText('\u5747\u4E00\u6559\u80B2\u5E73\u53F0 -- \u8FA6\u516C\u5BA4\u63A2\u96AA', w / 2, 400);
+
+  // -- Verification code (bottom-right) --
+  var code = generateVerifyCode(name);
+  ctx.fillStyle = '#d5cbbe';
+  ctx.font = '9px "Noto Sans TC", sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(code.substring(0, 12), w - 36, h - 36);
+  ctx.fillText(code.substring(0, 16), w - 28, h - 24);
   ctx.textAlign = 'center';
 }
 
@@ -2336,7 +2455,7 @@ function buildCompletionActions(container, canvas, name) {
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
-        a.download = '\u958B\u6E90\u4EBA-' + name + '.png';
+        a.download = '\u5747\u4E00\u631C\u958B\u6E90-' + name + '.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -2393,7 +2512,7 @@ function showVerifyPage(code) {
     var json = decodeURIComponent(escape(atob(code)));
     var data = JSON.parse(json);
 
-    page.appendChild(el('div', 'verify-title', '\u958B\u6E90\u4EBA'));
+    page.appendChild(el('div', 'verify-title', '\u5747\u4E00\u631C\u958B\u6E90'));
     page.appendChild(el('div', 'verify-name', data.n || ''));
     page.appendChild(el('div', 'verify-info', '\u65E5\u671F\uFF1A' + (data.d || '')));
     page.appendChild(el('div', 'verify-info', '\u63A2\u7D22\u5834\u666F\uFF1A' + (data.r || 0) + ' \u500B'));
@@ -2426,7 +2545,11 @@ function renderRoom() {
 
   // Hint banner (if a char has been found and there's a next one to find)
   var hint = getHintForNextChar();
-  if (hint && (G.collectedChars['\u958B'] || G.collectedChars['\u6E90'] || G.collectedChars['\u4EBA'])) {
+  var anyCollected = false;
+  for (var ci = 0; ci < COLLECT_CHARS.length; ci++) {
+    if (G.collectedChars[COLLECT_CHARS[ci]]) { anyCollected = true; break; }
+  }
+  if (hint && anyCollected) {
     var hintBanner = el('div', 'hint-banner');
     hintBanner.textContent = hint;
     container.appendChild(hintBanner);
