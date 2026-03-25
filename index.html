@@ -1338,6 +1338,7 @@ function parseRoom(md, filename) {
   var title = '';
   var descLines = [];
   var interactions = [];
+  var pastDescription = false; // true after first blank line following description
 
   for (var i = 0; i < lines.length; i++) {
     var trimmed = lines[i].trim();
@@ -1348,24 +1349,33 @@ function parseRoom(md, filename) {
       continue;
     }
 
-    // Skip blank lines and ## headings
-    if (trimmed === '') continue;
-    if (/^##\s+/.test(trimmed)) continue;
+    // Skip ## headings (legacy section headers, ignored)
+    if (/^##\s+/.test(trimmed)) { pastDescription = true; continue; }
 
-    // Lines with : or fullwidth colon (text on both sides) → interaction
-    var m = trimmed.match(/^(.+?)[：:]\s*(.+)$/);
-    if (m) {
-      var rawResult = m[2].trim();
-      var collectible = null;
-      var cm = rawResult.match(/\*(.+?)\*\s*$/);
-      if (cm) {
-        collectible = cm[1].trim();
-        rawResult = rawResult.replace(/\*(.+?)\*\s*$/, '').trim();
+    // Blank line: if we already have description content, mark transition
+    if (trimmed === '') {
+      if (descLines.length > 0) pastDescription = true;
+      continue;
+    }
+
+    // After the description block, lines with : → interaction
+    if (pastDescription) {
+      var m = trimmed.match(/^(.+?)[：:]\s*(.+)$/);
+      if (m) {
+        var rawResult = m[2].trim();
+        var collectible = null;
+        var cm = rawResult.match(/\*(.+?)\*\s*$/);
+        if (cm) {
+          collectible = cm[1].trim();
+          rawResult = rawResult.replace(/\*(.+?)\*\s*$/, '').trim();
+        }
+        interactions.push({ label: m[1].trim(), result: rawResult, collectible: collectible });
+        continue;
       }
-      var interLabel = m[1].trim();
-      interactions.push({ label: interLabel, result: rawResult, collectible: collectible });
-    } else {
-      // Everything else → description
+    }
+
+    // Before transition (or non-matching lines after) → description
+    if (!pastDescription) {
       descLines.push(trimmed);
     }
   }
